@@ -9,14 +9,9 @@ Library for desktop app development.
 
 ## Installation
 
-> `pip install pywebview`
+> `n2 get sulfur`
 
-If you are running the project locally from this repository, use the package directly:
-
-```bash
-cd /path/to/sf
-PYTHONPATH=. python main.py
-```
+If you don't have Nitrogen: `pipx install wwn` first.
 
 ## Quick start
 
