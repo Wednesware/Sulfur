@@ -5,7 +5,7 @@
 
 # Sulfur
 
-Sulfur turns a Fluorine page into a desktop app using pywebview, allowing you to wrap browser-based interfaces in a native application window with simple Python APIs.
+Library for desktop app development.
 
 ## Installation
 
