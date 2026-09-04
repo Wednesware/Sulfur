@@ -3,10 +3,11 @@ import tempfile, sys, logging, tkinter.messagebox as msgbox
 try:
     import webview
 except ImportError:
-    print("sulfur: Webview is not installed. Please install it using 'pip install pywebview'.")
+    print("{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it using 'pip install pywebview'.")
     exit(1)
 
 from ww.mg26_12.filepath import FilePath
+from ww.mg26_12.color import Color
 
 
 class _PyWebviewUnsupportedCallableFilter(logging.Filter):
@@ -24,7 +25,7 @@ class App:
         if hasattr(page, "build"):
             build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name)
             if build is None:
-                print("sulfur: No build was generated.")
+                print(f"{Color.yellow}sulfur: {Color.reset}No build was generated.")
                 return
             self.window: webview.Window = webview.create_window(
                 f"{page.name} - Sulfur",
@@ -36,7 +37,7 @@ class App:
             if hasattr(page, "_attach_window"):
                 page._attach_window(self.window)
             if "--silent" not in sys.argv:
-                print("sulfur: Initialized new app for page:", page.name)
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page.name)
         elif isinstance(page, str) and "://" in page:
             self.window: webview.Window = webview.create_window(
                 f"{page} - Sulfur",
@@ -45,7 +46,7 @@ class App:
                 height=700,
             )
             if "--silent" not in sys.argv:
-                print("sulfur: Initialized new app for page:", page)
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
         else:
             path: FilePath = FilePath(page)
             self.window: webview.Window = webview.create_window(
@@ -55,14 +56,14 @@ class App:
                 height=700,
             )
             if "--silent" not in sys.argv:
-                print("sulfur: Initialized new app for page:", path.name)
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", path.name)
 
     def open(self, dev: bool = False) -> None:
         if self.window is None:
             return
-        print("sulfur: Launching app...")
+        print(f"{Color.yellow}sulfur: {Color.reset}Launching app...")
         webview.start(debug=dev)
-        print("sulfur: App session terminated.")
+        print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
 
 def info(message: str) -> None:
     msgbox.showinfo("Info", message)
