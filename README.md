@@ -50,8 +50,8 @@ App("https://example.com").open()
 ## Dependencies
 
 - Python 3.12+
-- pywebview
-- Fluorine page objects or HTML files
+- Nitrogen 26.58+ (`pip install wwn`)
+- Webview (`pip install pywebview`)
 
 # Definitions
 

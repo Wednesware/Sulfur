@@ -1,13 +1,16 @@
 import tempfile, sys, logging, tkinter.messagebox as msgbox
-
+try:
+    from nitrogen import require
+except ImportError as e:
+    print(f"sulfur: Nitrogen is not installed. Please install it using 'pip install wwn'.")
+    exit(1)
+Color = require("magnesium.color").Color
+FilePath = require("magnesium.filepath").FilePath
 try:
     import webview
 except ImportError:
     print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it using 'pip install pywebview'.")
     exit(1)
-
-from ww.mg26_12.filepath import FilePath
-from ww.mg26_12.color import Color
 
 
 class _PyWebviewUnsupportedCallableFilter(logging.Filter):
@@ -23,7 +26,7 @@ class App:
             pywebview_logger.addFilter(_PyWebviewUnsupportedCallableFilter())
 
         if hasattr(page, "build"):
-            build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name)
+            build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name) # type: ignore
             if build is None:
                 print(f"{Color.yellow}sulfur: {Color.reset}No build was generated.")
                 return
@@ -48,7 +51,7 @@ class App:
             if "--silent" not in sys.argv:
                 print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
         else:
-            path: FilePath = FilePath(page)
+            path: FilePath = FilePath(page) # type: ignore
             self.window: webview.Window = webview.create_window(
                 f"{path.name} - Sulfur",
                 str(path),
