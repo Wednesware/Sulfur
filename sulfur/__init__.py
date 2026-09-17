@@ -3,7 +3,7 @@ import tempfile, sys, logging, tkinter.messagebox as msgbox
 try:
     import webview
 except ImportError:
-    print("{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it using 'pip install pywebview'.")
+    print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it using 'pip install pywebview'.")
     exit(1)
 
 from ww.mg26_12.filepath import FilePath
