@@ -61,17 +61,15 @@ From the base library, you can import the app launcher and desktop dialog helper
 
 > `from ww.s import App, info, warning, error, yesno, okcancel, retrycancel, yesnocancel`
 
-### `sulfur:App(page: Page | str | FilePath)`
+### `sulfur:App(page: Page | str | FilePath, silent: bool = False)`
 
 The `App` class creates a desktop application window for a Fluorine page, a file path, or a URL. It uses pywebview under the hood and registers the page’s Python API handlers when the page object supports them.
 
-> `app = App(page)`
+> `app = App(page, silent=False)`
 
 #### `sulfur:App.open(dev: bool = False)`
 
-Starts the app window and blocks until the application exits.
-
-> `app.open()`
+Starts the app window and blocks until the application exits. `dev=True` enables developer mode with debugging features.
 
 > `app.open(dev=True)`
 
@@ -116,24 +114,6 @@ Displays a Retry/Cancel dialog and returns a boolean result.
 Displays a Yes/No/Cancel dialog and returns a boolean result.
 
 > `choice = yesnocancel("Save your changes?")`
-
-### `sulfur:ainfo(message: str)`
-
-Async version of `info`.
-
-> `await ainfo("Saved successfully.")`
-
-### `sulfur:awarning(message: str)`
-
-Async version of `warning`.
-
-> `await awarning("This action is irreversible.")`
-
-### `sulfur:aerror(message: str)`
-
-Async version of `error`.
-
-> `await aerror("An unexpected error occurred.")`
 
 ## Example app
 

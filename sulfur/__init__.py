@@ -20,7 +20,8 @@ class _PyWebviewUnsupportedCallableFilter(logging.Filter):
         return self._ignored_message not in record.getMessage()
 
 class App:
-    def __init__(self, page: "Page | str | FilePath") -> None: # type: ignore
+    def __init__(self, page: "Page | str | FilePath", silent: bool = False) -> None: # type: ignore
+        self.silent: bool = silent
         pywebview_logger = logging.getLogger("pywebview")
         if not any(isinstance(f, _PyWebviewUnsupportedCallableFilter) for f in pywebview_logger.filters):
             pywebview_logger.addFilter(_PyWebviewUnsupportedCallableFilter())
@@ -39,7 +40,7 @@ class App:
             )
             if hasattr(page, "_attach_window"):
                 page._attach_window(self.window)
-            if "--silent" not in sys.argv:
+            if not self.silent and "--silent" not in sys.argv:
                 print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page.name)
         elif isinstance(page, str) and "://" in page:
             self.window: webview.Window = webview.create_window(
@@ -48,7 +49,7 @@ class App:
                 width=1000,
                 height=700,
             )
-            if "--silent" not in sys.argv:
+            if not self.silent and "--silent" not in sys.argv:
                 print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
         else:
             path: FilePath = FilePath(page) # type: ignore
@@ -58,15 +59,17 @@ class App:
                 width=1000,
                 height=700,
             )
-            if "--silent" not in sys.argv:
+            if not self.silent and "--silent" not in sys.argv:
                 print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", path.name)
 
     def open(self, dev: bool = False) -> None:
         if self.window is None:
             return
-        print(f"{Color.yellow}sulfur: {Color.reset}Launching app...")
+        if not self.silent and "--silent" not in sys.argv:
+            print(f"{Color.yellow}sulfur: {Color.reset}Launching app...")
         webview.start(debug=dev)
-        print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
+        if not self.silent and "--silent" not in sys.argv:
+            print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
 
 def info(message: str) -> None:
     msgbox.showinfo("Info", message)
