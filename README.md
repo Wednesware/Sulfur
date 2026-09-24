@@ -52,6 +52,8 @@ App("https://example.com").open()
 - Python 3.12+
 - Nitrogen 26.58+ (`pip install wwn`)
 - Webview (`pip install pywebview`)
+- PySide6 (`pip install PySide6`)
+- qtpy (`pip install qtpy`)
 
 # Definitions
 
