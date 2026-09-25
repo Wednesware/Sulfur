@@ -1,9 +1,10 @@
-import tempfile, sys, logging, tkinter.messagebox as msgbox
+import tempfile, sys, logging, tkinter.messagebox as msgbox, contextlib, io
 from nitrogen import require
 Color = require("magnesium.color").Color
 FilePath = require("magnesium.filepath").FilePath
 try:
-    import webview
+    with contextlib.redirect_stderr(io.StringIO()):
+        import webview
 except ImportError:
     print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it using 'pip install pywebview'.")
     exit(1)
