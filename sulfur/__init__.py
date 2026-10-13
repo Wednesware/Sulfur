@@ -12,13 +12,13 @@ except ImportError:
     print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it and its dependencies using 'pip install pywebview PySide6 qtpy'.")
     exit(1)
 
-
 _IGNORED_MESSAGES = (
     "Error while processing script: unsupported callable",
     "Cannot read properties of null (reading 'appendChild')",
     "Cannot read properties of undefined (reading '_createApi')",
     "QWebChannel is not defined",
     "Registered new object after initialization, existing clients won't be notified!",
+    "QtWaylandClient::QWaylandTextInputv3::disableSurface",
 )
 
 class _SulfurLogFilter(logging.Filter):
@@ -113,7 +113,10 @@ class App:
         # Filter only known Qt/pywebview noise; never redirect process stdout/stderr.
         if not dev:
             _install_qt_silencing()
-        webview.start(gui="qt", debug=dev)
+        # On Linux, prefer Qt to avoid GTK probing when Qt is installed.
+        # Windows and macOS use pywebview's native default backend.
+        gui = "qt" if sys.platform.startswith("linux") else None
+        webview.start(gui=gui, debug=dev)
         if not quiet:
             print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
 
