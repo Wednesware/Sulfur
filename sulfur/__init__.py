@@ -1,4 +1,4 @@
-import tempfile, sys, logging, os, contextlib, tkinter.messagebox as msgbox
+import tempfile, sys, logging, tkinter.messagebox as msgbox
 try:
     from nitrogen import require
 except ImportError as e:
@@ -13,33 +13,6 @@ except ImportError:
     exit(1)
 
 
-@contextlib.contextmanager
-def _silence_output(enabled):
-    if not enabled:
-        yield
-        return
-    with open(os.devnull, 'w') as null:
-        try:
-            sys.stdout.flush()
-            sys.stderr.flush()
-        except (OSError, ValueError):
-            pass
-        saved = []
-        try:
-            for fd in (1, 2):
-                try:
-                    original = os.dup(fd)
-                except OSError:
-                    continue
-                saved.append((fd, original))
-                os.dup2(null.fileno(), fd)
-            yield
-        finally:
-            for fd, original in reversed(saved):
-                os.dup2(original, fd)
-                os.close(original)
-
-
 _IGNORED_MESSAGES = (
     "Error while processing script: unsupported callable",
     "Cannot read properties of null (reading 'appendChild')",
@@ -50,7 +23,8 @@ _IGNORED_MESSAGES = (
 
 class _SulfurLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return not any(message in record.getMessage() for message in _IGNORED_MESSAGES)
+        message = record.getMessage()
+        return not (message.startswith("js:") or any(ignored in message for ignored in _IGNORED_MESSAGES))
 
 # Keep the handler alive: Qt holds a Python callback for native Qt messages.
 _qt_message_handler = None
@@ -76,7 +50,7 @@ def _install_qt_silencing():
                 return
 
     def handler(mode, context, message):
-        if any(ignored in message for ignored in _IGNORED_MESSAGES):
+        if message.startswith("js:") or any(ignored in message for ignored in _IGNORED_MESSAGES):
             return
         if _qt_previous_handler is not None:
             _qt_previous_handler(mode, context, message)
@@ -88,48 +62,47 @@ def _install_qt_silencing():
 
 class App:
     def __init__(self, page: "Page | str | FilePath", silent: bool = False, name: str | None = None) -> None: # type: ignore
-        with _silence_output(silent or "--silent" in sys.argv):
-            self.silent: bool = silent
-            self.name: str = name or f"{getattr(page, 'name', str(page))} - Sulfur"
-            pywebview_logger = logging.getLogger("pywebview")
-            if not any(isinstance(f, _SulfurLogFilter) for f in pywebview_logger.filters):
-                pywebview_logger.addFilter(_SulfurLogFilter())
+        self.silent: bool = silent
+        self.name: str = name or f"{getattr(page, 'name', str(page))} - Sulfur"
+        pywebview_logger = logging.getLogger("pywebview")
+        if not any(isinstance(f, _SulfurLogFilter) for f in pywebview_logger.filters):
+            pywebview_logger.addFilter(_SulfurLogFilter())
 
-            if hasattr(page, "build"):
-                build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name) # type: ignore
-                if build is None:
-                    print(f"{Color.yellow}sulfur: {Color.reset}No build was generated.")
-                    return
-                self.window: webview.Window = webview.create_window(
-                    self.name,
-                    str(build),
-                    width=1000,
-                    height=700,
-                    js_api=page,
-                )
-                if hasattr(page, "_attach_window"):
-                    page._attach_window(self.window)
-                if not self.silent and "--silent" not in sys.argv:
-                    print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page.name)
-            elif isinstance(page, str) and "://" in page:
-                self.window: webview.Window = webview.create_window(
-                    self.name,
-                    page,
-                    width=1000,
-                    height=700,
-                )
-                if not self.silent and "--silent" not in sys.argv:
-                    print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
-            else:
-                path: FilePath = FilePath(page) # type: ignore
-                self.window: webview.Window = webview.create_window(
-                    self.name,
-                    str(path),
-                    width=1000,
-                    height=700,
-                )
-                if not self.silent and "--silent" not in sys.argv:
-                    print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", path.name)
+        if hasattr(page, "build"):
+            build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name) # type: ignore
+            if build is None:
+                print(f"{Color.yellow}sulfur: {Color.reset}No build was generated.")
+                return
+            self.window: webview.Window = webview.create_window(
+                self.name,
+                str(build),
+                width=1000,
+                height=700,
+                js_api=page,
+            )
+            if hasattr(page, "_attach_window"):
+                page._attach_window(self.window)
+            if not self.silent and "--silent" not in sys.argv:
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page.name)
+        elif isinstance(page, str) and "://" in page:
+            self.window: webview.Window = webview.create_window(
+                self.name,
+                page,
+                width=1000,
+                height=700,
+            )
+            if not self.silent and "--silent" not in sys.argv:
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
+        else:
+            path: FilePath = FilePath(page) # type: ignore
+            self.window: webview.Window = webview.create_window(
+                self.name,
+                str(path),
+                width=1000,
+                height=700,
+            )
+            if not self.silent and "--silent" not in sys.argv:
+                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", path.name)
 
     def open(self, dev: bool = False) -> None:
         if self.window is None:
@@ -137,11 +110,10 @@ class App:
         quiet = self.silent or "--silent" in sys.argv
         if not quiet:
             print(f"{Color.yellow}sulfur: {Color.reset}Launching app...")
-        # Keep the existing selective filter for non-silent applications.
-        if not dev and not quiet:
+        # Filter only known Qt/pywebview noise; never redirect process stdout/stderr.
+        if not dev:
             _install_qt_silencing()
-        with _silence_output(quiet):
-            webview.start(debug=dev)
+        webview.start(debug=dev)
         if not quiet:
             print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
 
