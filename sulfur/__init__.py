@@ -1,13 +1,10 @@
-import tempfile, sys, logging, tkinter.messagebox as msgbox
-try:
-    from nitrogen import require
-except ImportError as e:
-    print(f"sulfur: Nitrogen is not installed. Please install it using 'pip install wwn'.")
-    exit(1)
+import tempfile, sys, logging, tkinter.messagebox as msgbox, contextlib, io
+from nitrogen import require
 Color = require("magnesium.color").Color
 FilePath = require("magnesium.filepath").FilePath
 try:
-    import webview
+    with contextlib.redirect_stderr(io.StringIO()):
+        import webview
 except ImportError:
     print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it and its dependencies using 'pip install pywebview qtpy PySide6'.")
     exit(1)
