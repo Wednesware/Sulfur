@@ -113,7 +113,7 @@ class App:
         # Filter only known Qt/pywebview noise; never redirect process stdout/stderr.
         if not dev:
             _install_qt_silencing()
-        webview.start(debug=dev)
+        webview.start(gui="qt", debug=dev)
         if not quiet:
             print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
 
