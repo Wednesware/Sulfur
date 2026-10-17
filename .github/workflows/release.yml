@@ -47,6 +47,8 @@ jobs:
         env:
           PYTHONPATH: .:.integration/Fluorine
           QTWEBENGINE_DISABLE_SANDBOX: '1'
+          QT_QPA_PLATFORM: offscreen
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
         run: |
           timeout 60s xvfb-run -a python tests/desktop_smoke.py
           timeout 60s xvfb-run -a python tests/desktop_smoke.py --file
