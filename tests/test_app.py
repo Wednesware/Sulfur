@@ -43,7 +43,7 @@ fake_webview.create_window = Window
 fake_webview.start = lambda **kwargs: None
 with patch.dict(sys.modules, {'webview': fake_webview}):
     import sulfur
-from sulfur.bridge import PageRuntime
+    from sulfur.bridge import PageRuntime
 
 
 class FakePage:

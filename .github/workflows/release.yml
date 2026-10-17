@@ -41,7 +41,7 @@ jobs:
       - name: Install Qt and pywebview
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0
+          sudo apt-get install -y xvfb libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1
           python -m pip install pywebview PySide6 qtpy
       - name: Exercise real Python callbacks and DOM updates
         env:
