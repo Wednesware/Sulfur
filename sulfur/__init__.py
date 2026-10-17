@@ -1,30 +1,37 @@
-import tempfile, sys, logging, tkinter.messagebox as msgbox
+"""Host HTML files and optional Python callbacks in a desktop window."""
+import logging
+import sys
+import tempfile
+from pathlib import Path
+
+from .bridge import PageRuntime
+
+__version__ = '26.9'
+
 try:
     from nitrogen import require
-except ImportError as e:
-    print(f"sulfur: Nitrogen is not installed. Please install it using 'pip install wwn'.")
-    exit(1)
-Color = require("magnesium.color").Color
-FilePath = require("magnesium.filepath").FilePath
+    Color = require('magnesium.color').Color
+except ImportError:
+    class Color:
+        yellow = reset = ''
+
 try:
     import webview
-except ImportError:
-    print(f"{Color.yellow}sulfur: {Color.reset}Webview is not installed. Please install it and its dependencies using 'pip install pywebview PySide6 qtpy'.")
-    exit(1)
+except ImportError as exc:
+    raise ImportError(
+        'Sulfur requires pywebview. Install pywebview and a supported GUI backend '
+        '(on Linux: PySide6 and qtpy).'
+    ) from exc
 
 _IGNORED_MESSAGES = (
-    "Error while processing script: unsupported callable",
-    "Cannot read properties of null (reading 'appendChild')",
-    "Cannot read properties of undefined (reading '_createApi')",
-    "QWebChannel is not defined",
-    "Registered new object after initialization, existing clients won't be notified!",
-    "QtWaylandClient::QWaylandTextInputv3::disableSurface",
+    'Registered new object after initialization, existing clients won\'t be notified!',
+    'QtWaylandClient::QWaylandTextInputv3::disableSurface',
 )
 
 class _SulfurLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         message = record.getMessage()
-        return not (message.startswith("js:") or any(ignored in message for ignored in _IGNORED_MESSAGES))
+        return not any(ignored in message for ignored in _IGNORED_MESSAGES)
 
 # Keep the handler alive: Qt holds a Python callback for native Qt messages.
 _qt_message_handler = None
@@ -50,7 +57,7 @@ def _install_qt_silencing():
                 return
 
     def handler(mode, context, message):
-        if message.startswith("js:") or any(ignored in message for ignored in _IGNORED_MESSAGES):
+        if any(ignored in message for ignored in _IGNORED_MESSAGES):
             return
         if _qt_previous_handler is not None:
             _qt_previous_handler(mode, context, message)
@@ -61,82 +68,118 @@ def _install_qt_silencing():
     _qt_previous_handler = qInstallMessageHandler(handler)
 
 class App:
-    def __init__(self, page: "Page | str | FilePath", silent: bool = False, name: str | None = None) -> None: # type: ignore
-        self.silent: bool = silent
-        self.name: str = name or f"{getattr(page, 'name', str(page))} - Sulfur"
-        pywebview_logger = logging.getLogger("pywebview")
-        if not any(isinstance(f, _SulfurLogFilter) for f in pywebview_logger.filters):
-            pywebview_logger.addFilter(_SulfurLogFilter())
+    def __init__(self, page, silent=False, name=None, *, callbacks=None,
+                 width=1000, height=700, **window_options):
+        self.silent = silent
+        self.name = name or f"{getattr(page, 'name', str(page))} - Sulfur"
+        self.window = None
+        self._temporary = None
+        self._page = page if callable(getattr(page, 'build', None)) else None
+        self._callbacks = dict(callbacks or {})
+        logger = logging.getLogger('pywebview')
+        if not any(isinstance(f, _SulfurLogFilter) for f in logger.filters):
+            logger.addFilter(_SulfurLogFilter())
+        try:
+            if self._page is not None:
+                self._temporary = tempfile.TemporaryDirectory(prefix='sulfur-')
+                target = self._page.build(to=Path(self._temporary.name) / 'index.html')
+                if target is None:
+                    raise ValueError('Page.build() did not produce an HTML file')
+                target = str(target)
+            elif isinstance(page, str) and '://' in page:
+                target = page
+            else:
+                target_path = Path(str(page)).expanduser().resolve()
+                if not target_path.is_file():
+                    raise FileNotFoundError(f'HTML file does not exist: {target_path}')
+                target = str(target_path)
+            self.window = webview.create_window(
+                self.name, target, width=width, height=height, **window_options
+            )
+            self.runtime = PageRuntime(self.window, self._registered_callbacks)
+            self.window.events.closed += self._cleanup
+            if self._page is not None:
+                attach = getattr(self._page, 'attach_runtime', None)
+                if not callable(attach):
+                    attach = getattr(self._page, '_attach_window', None)
+                if callable(attach):
+                    attach(self.runtime)
+        except Exception:
+            self._cleanup()
+            raise
+        if not self.silent and '--silent' not in sys.argv:
+            print(f'{Color.yellow}sulfur: {Color.reset}Initialized new app for page:',
+                  getattr(page, 'name', str(page)))
 
-        if hasattr(page, "build"):
-            build: FilePath | None = page.build(to=tempfile.NamedTemporaryFile(suffix=".html").name) # type: ignore
-            if build is None:
-                print(f"{Color.yellow}sulfur: {Color.reset}No build was generated.")
-                return
-            self.window: webview.Window = webview.create_window(
-                self.name,
-                str(build),
-                width=1000,
-                height=700,
-                js_api=page,
-            )
-            if hasattr(page, "_attach_window"):
-                page._attach_window(self.window)
-            if not self.silent and "--silent" not in sys.argv:
-                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page.name)
-        elif isinstance(page, str) and "://" in page:
-            self.window: webview.Window = webview.create_window(
-                self.name,
-                page,
-                width=1000,
-                height=700,
-            )
-            if not self.silent and "--silent" not in sys.argv:
-                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", page)
-        else:
-            path: FilePath = FilePath(page) # type: ignore
-            self.window: webview.Window = webview.create_window(
-                self.name,
-                str(path),
-                width=1000,
-                height=700,
-            )
-            if not self.silent and "--silent" not in sys.argv:
-                print(f"{Color.yellow}sulfur: {Color.reset}Initialized new app for page:", path.name)
+    def _registered_callbacks(self):
+        # Older Fluorine pages keep their registry private. Explicit exposure
+        # also supports their underscore-prefixed callback names.
+        registered = dict(getattr(self._page, 'callbacks',
+                                  getattr(self._page, '_python_handlers', {})))
+        for name, callback in self._callbacks.items():
+            if name in registered and registered[name] is not callback:
+                raise ValueError(f'Duplicate callback name: {name!r}')
+            registered[name] = callback
+        return registered
 
-    def open(self, dev: bool = False) -> None:
-        if self.window is None:
-            return
-        quiet = self.silent or "--silent" in sys.argv
+    def run(self, script):
+        """Evaluate JavaScript, or queue it until the document is ready."""
+        return self.runtime.evaluate_js(str(script))
+
+    def _cleanup(self):
+        if self._page is not None:
+            detach = getattr(self._page, 'detach_runtime', None)
+            if callable(detach):
+                detach()
+            elif getattr(self._page, '_window', None) is getattr(self, 'runtime', None):
+                self._page._window = None
+        if self._temporary is not None:
+            self._temporary.cleanup()
+            self._temporary = None
+
+    def close(self):
+        """Request that the window close; temporary HTML is removed on exit."""
+        if self.window is not None:
+            self.window.destroy()
+
+    def open(self, dev=False, *, gui=None):
+        quiet = self.silent or '--silent' in sys.argv
         if not quiet:
-            print(f"{Color.yellow}sulfur: {Color.reset}Launching app...")
-        # Filter only known Qt/pywebview noise; never redirect process stdout/stderr.
+            print(f'{Color.yellow}sulfur: {Color.reset}Launching app...')
         if not dev:
             _install_qt_silencing()
-        # On Linux, prefer Qt to avoid GTK probing when Qt is installed.
-        # Windows and macOS use pywebview's native default backend.
-        gui = "qt" if sys.platform.startswith("linux") else None
-        webview.start(gui=gui, debug=dev)
+        backend = gui if gui is not None else ('qt' if sys.platform.startswith('linux') else None)
+        try:
+            webview.start(gui=backend, debug=dev)
+        finally:
+            self._cleanup()
         if not quiet:
-            print(f"{Color.yellow}sulfur: {Color.reset}App session terminated.")
+            print(f'{Color.yellow}sulfur: {Color.reset}App session terminated.')
+
+
+def _dialog(method, title, message):
+    # Import Tk only when a desktop dialog is actually requested.
+    import tkinter.messagebox as msgbox
+    return getattr(msgbox, method)(title, message)
+
 
 def info(message: str) -> None:
-    msgbox.showinfo("Info", message)
+    _dialog("showinfo", "Info", message)
     
 def warning(message: str) -> None:
-    msgbox.showwarning("Warning", message)
+    _dialog("showwarning", "Warning", message)
     
 def error(message: str) -> None:
-    msgbox.showerror("Error", message)
+    _dialog("showerror", "Error", message)
 
 def yesno(message: str) -> bool:
-    return msgbox.askyesno("Confirm", message)
+    return _dialog("askyesno", "Confirm", message)
 
 def okcancel(message: str) -> bool:
-    return msgbox.askokcancel("Confirm", message)
+    return _dialog("askokcancel", "Confirm", message)
 
 def retrycancel(message: str) -> bool:
-    return msgbox.askretrycancel("Confirm", message)
+    return _dialog("askretrycancel", "Confirm", message)
 
 def yesnocancel(message: str) -> bool:
-    return msgbox.askyesnocancel("Confirm", message)
+    return _dialog("askyesnocancel", "Confirm", message)
