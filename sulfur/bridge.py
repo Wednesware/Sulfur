@@ -1,5 +1,6 @@
 """Explicit callback exposure and page-readiness buffering for pywebview."""
 import re
+import logging
 from threading import RLock
 
 
@@ -52,7 +53,11 @@ class PageRuntime:
                     self._ready = True
                     return
             for script in pending:
-                self.window.evaluate_js(script)
+                try:
+                    self.window.evaluate_js(script)
+                except Exception:
+                    # One malformed user script must not strand later updates.
+                    logging.getLogger('sulfur').exception('Queued JavaScript failed')
 
     def evaluate_js(self, script):
         self.sync_callbacks()

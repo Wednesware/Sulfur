@@ -64,6 +64,9 @@ def verify():
                 raise AssertionError('Dynamic callback was not exposed')
         result.append('passed')
     except Exception as exc:
+        print('Desktop check failed:', repr(exc), flush=True)
+        print('Document:', app.window.evaluate_js('document.documentElement.outerHTML'), flush=True)
+        print('URL:', app.window.evaluate_js('window.location.href'), flush=True)
         result.append(exc)
     finally:
         app.close()
@@ -85,7 +88,7 @@ watchdog = threading.Timer(20, app.close)
 watchdog.daemon = True
 watchdog.start()
 try:
-    app.open(dev=True, gui='qt')
+    app.open(gui='qt')
 finally:
     watchdog.cancel()
     temporary.cleanup()

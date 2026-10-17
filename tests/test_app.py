@@ -127,6 +127,22 @@ class AppTests(unittest.TestCase):
         window.events.loaded.fire()
         self.assertEqual(window.scripts[-1], 'after_reload()')
 
+    def test_failed_queued_script_does_not_block_later_updates(self):
+        window = Window('Queue', 'queue.html')
+        runtime = PageRuntime(window)
+        runtime.evaluate_js('broken()')
+        runtime.evaluate_js('valid()')
+        evaluate = window.evaluate_js
+        def execute(script):
+            if script == 'broken()':
+                raise RuntimeError('JavaScript error')
+            return evaluate(script)
+        window.evaluate_js = execute
+        with self.assertLogs('sulfur', level='ERROR'):
+            window.events.loaded.fire()
+        self.assertTrue(runtime._ready)
+        self.assertEqual(window.scripts[-1], 'valid()')
+
     def test_invalid_callbacks_are_rejected(self):
         for callbacks, error in [({'bad-name': lambda: None}, ValueError),
                                  ({'not_callable': 42}, TypeError)]:
