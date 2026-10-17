@@ -8,6 +8,8 @@
   callbacks, and legacy Fluorine underscore-prefixed callbacks.
 - Buffer `App.run()` and page DOM updates until the document is loaded, and
   reconnect the bridge after reloads.
+- Open local HTML directly with `file://` by default, avoiding an unnecessary
+  loopback server. Use `serve_local=True` for HTTP-origin features such as fetch.
 - Add configurable window options, an explicit GUI backend option, and `close()`.
 - Keep generated temporary HTML for the lifetime of the window, then remove it
   and detach the page, including when startup fails.

@@ -5,6 +5,11 @@ import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import unquote, urlparse
+
+
+def local_path(url):
+    return Path(unquote(urlparse(url).path))
 
 # Unit tests exercise the host contract without a GUI or pywebview dependency.
 class Event:
@@ -152,7 +157,8 @@ class AppTests(unittest.TestCase):
     def test_close_cleans_temporary_html_and_detaches_page(self):
         page = FakePage()
         app = sulfur.App(page, silent=True)
-        path = Path(app.window.target)
+        self.assertTrue(app.window.target.startswith('file://'))
+        path = local_path(app.window.target)
         self.assertTrue(path.exists())
         app.close()
         self.assertFalse(path.exists())
@@ -169,11 +175,17 @@ class AppTests(unittest.TestCase):
 
     def test_start_failure_cleans_temporary_file(self):
         app = sulfur.App(FakePage(), silent=True)
-        path = Path(app.window.target)
+        path = local_path(app.window.target)
         with patch.object(fake_webview, 'start', side_effect=RuntimeError('backend failed')):
             with self.assertRaisesRegex(RuntimeError, 'backend failed'):
                 app.open(dev=True)
         self.assertFalse(path.exists())
+
+    def test_local_server_can_be_requested_explicitly(self):
+        app = sulfur.App(FakePage(), silent=True, serve_local=True)
+        self.addCleanup(app._cleanup)
+        self.assertTrue(Path(app.window.target).is_file())
+        self.assertNotIn('serve_local', app.window.options)
 
     def test_javascript_errors_remain_visible(self):
         record = logging.LogRecord('pywebview', logging.ERROR, '', 0,

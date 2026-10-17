@@ -63,7 +63,7 @@ From the base library, you can import the app launcher and desktop dialog helper
 
 > `from ww.s import App, info, warning, error, yesno, okcancel, retrycancel, yesnocancel`
 
-### `sulfur:App(page, silent=False, name=None, *, callbacks=None, width=1000, height=700, **window_options)`
+### `sulfur:App(page, silent=False, name=None, *, callbacks=None, width=1000, height=700, serve_local=False, **window_options)`
 
 The `App` class creates a desktop application window for a Fluorine page, a file path, or a URL. It uses pywebview under the hood and registers the page’s Python API handlers when the page object supports them.
 
@@ -225,3 +225,10 @@ PYTHONPATH=.:../Fluorine xvfb-run -a python3 tests/desktop_smoke.py
 The Qt integration test requires `pywebview`, `PySide6`, and `qtpy`, and a desktop
 session or Xvfb. Release archives exclude bytecode caches and use Nitrogen's
 expected layout. See [CHANGELOG.md](CHANGELOG.md) for compatibility notes.
+
+
+Local HTML opens through a `file://` URL by default, so a basic desktop application
+does not depend on a loopback HTTP server. Relative scripts, styles, and images
+resolve alongside the HTML file. If your page needs an HTTP origin (for example,
+JavaScript modules or `fetch` subject to file-origin restrictions), pass
+`serve_local=True` to use pywebview's local server as in previous versions.

@@ -69,7 +69,7 @@ def _install_qt_silencing():
 
 class App:
     def __init__(self, page, silent=False, name=None, *, callbacks=None,
-                 width=1000, height=700, **window_options):
+                 width=1000, height=700, serve_local=False, **window_options):
         self.silent = silent
         self.name = name or f"{getattr(page, 'name', str(page))} - Sulfur"
         self.window = None
@@ -85,14 +85,15 @@ class App:
                 target = self._page.build(to=Path(self._temporary.name) / 'index.html')
                 if target is None:
                     raise ValueError('Page.build() did not produce an HTML file')
-                target = str(target)
+                target_path = Path(str(target)).resolve()
+                target = str(target_path) if serve_local else target_path.as_uri()
             elif isinstance(page, str) and '://' in page:
                 target = page
             else:
                 target_path = Path(str(page)).expanduser().resolve()
                 if not target_path.is_file():
                     raise FileNotFoundError(f'HTML file does not exist: {target_path}')
-                target = str(target_path)
+                target = str(target_path) if serve_local else target_path.as_uri()
             self.window = webview.create_window(
                 self.name, target, width=width, height=height, **window_options
             )

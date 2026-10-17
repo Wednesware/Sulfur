@@ -65,7 +65,7 @@ def verify():
         result.append('passed')
     except Exception as exc:
         print('Desktop check failed:', repr(exc), flush=True)
-        print('Document:', app.window.evaluate_js('document.documentElement.outerHTML'), flush=True)
+        print('Document:', app.window.evaluate_js('document.body.innerText.slice(0, 1000)'), flush=True)
         print('URL:', app.window.evaluate_js('window.location.href'), flush=True)
         result.append(exc)
     finally:
