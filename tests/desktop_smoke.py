@@ -24,7 +24,15 @@ def restart_game():
 move.bind('click', move_hero)
 restart.bind('click', restart_game)
 page.body(status, move, restart)
-page.script("document.getElementById('move').click();")
+page.script("""
+const call = window.fluorine.call;
+window.pendingPythonCalls = 0;
+window.fluorine.call = (...args) => {
+  window.pendingPythonCalls++;
+  return call(...args).finally(() => window.pendingPythonCalls--);
+};
+document.getElementById('move').click();
+""")
 page.run("document.getElementById('status').setAttribute('data-ready', 'yes');")
 temporary = tempfile.TemporaryDirectory()
 file_mode = '--file' in sys.argv
@@ -47,7 +55,8 @@ def verify():
             if click:
                 app.window.evaluate_js(f"document.getElementById('{click}').click()")
             for _ in range(100):
-                if app.window.evaluate_js("document.getElementById('status').textContent") == expected:
+                state = app.window.evaluate_js("[document.getElementById('status').textContent, window.pendingPythonCalls]")
+                if state == [expected, 0]:
                     break
                 threading.Event().wait(0.05)
             else:
@@ -57,7 +66,8 @@ def verify():
             move.bind('click', lambda: setattr(status, 'text', 'Rebound'))
             app.window.evaluate_js("document.getElementById('move').click()")
             for _ in range(100):
-                if app.window.evaluate_js("document.getElementById('status').textContent") == 'Rebound':
+                state = app.window.evaluate_js("[document.getElementById('status').textContent, window.pendingPythonCalls]")
+                if state == ['Rebound', 0]:
                     break
                 threading.Event().wait(0.05)
             else:
